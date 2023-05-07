@@ -1,6 +1,5 @@
-use std::{env, error::Error, path};
-
 use clap::{Args, Parser, Subcommand};
+use std::{env, error::Error, path};
 use tonic::transport::{self, Channel};
 
 mod pb;
@@ -57,14 +56,13 @@ struct PersistedState {
 
 impl PersistedState {
     fn path() -> Result<path::PathBuf, Box<dyn Error>> {
-        let home_path: path::PathBuf;
         // TODO: Not use deprecated home_dir
-        match env::home_dir() {
-            Some(path) => home_path = path,
+        let home_path: path::PathBuf = match env::home_dir() {
+            Some(path) => path,
             None => {
                 return Err("unable to determine home dir".into());
             }
-        }
+        };
 
         Ok(home_path.join(".onx-state.json"))
     }
@@ -89,9 +87,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing::info!("parsed args");
 
     match &args.command {
-        Commands::Play(_play_args) => {
-            println!("play? {}", "epp");
-        }
+        Commands::Play(_play_args) => {}
         Commands::Register(register_args) => {
             println!("Registering as {}...", register_args.username);
             let mut client = args.user_client().await?;
