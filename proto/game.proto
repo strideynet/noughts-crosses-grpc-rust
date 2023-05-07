@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package game;
+
+service KnoughtsAndCrossesService {
+    rpc Play(stream PlayRequest) returns (stream PlayResponse);
+}
+
+message PlayRequest {
+    oneof message {
+        PlaySessionRequest play_session_request = 1;
+        PlaySessionMove play_session_move = 2;
+    }
+}
+
+message PlaySessionRequest {
+    string username = 1;
+}
+
+message PlaySessionMove {
+
+}
+
+message PlayResponse {
+    oneof message {
+        PlaySessionState play_session_state = 1;
+    }
+}
+
+message PlaySessionState {
+
+}
+
+service HealthService {
+    rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message PingRequest {}
+
+message PingResponse {
+    string version = 1;
+}
