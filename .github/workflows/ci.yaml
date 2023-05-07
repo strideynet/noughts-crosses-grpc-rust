@@ -21,6 +21,7 @@ jobs:
         with:
           push: true
           context: .
+          file: server.Dockerfile
           tags: |
             ghcr.io/strideynet/noughts-crosses-grpc-rust/server:latest
             ghcr.io/strideynet/noughts-crosses-grpc-rust/server:${{ github.sha }}
