@@ -2,7 +2,6 @@ use clap::{Args, Parser, Subcommand};
 
 mod pb;
 use pb::health_service_client::HealthServiceClient;
-use pb::knoughts_and_crosses_service_client::KnoughtsAndCrossesServiceClient;
 use pb::PingRequest;
 use tonic::transport::Channel;
 
@@ -18,11 +17,6 @@ struct MainCommand {
 impl MainCommand {
     async fn health_client(self) -> Result<HealthServiceClient<Channel>, tonic::transport::Error> {
         HealthServiceClient::connect(self.addr).await
-    }
-    async fn knoughts_and_crosses_client(
-        self,
-    ) -> Result<KnoughtsAndCrossesServiceClient<Channel>, tonic::transport::Error> {
-        KnoughtsAndCrossesServiceClient::connect(self.addr).await
     }
 }
 
