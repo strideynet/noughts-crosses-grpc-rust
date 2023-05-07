@@ -1,9 +1,9 @@
+use std::{env, error::Error, path};
+
 use clap::{Args, Parser, Subcommand};
+use tonic::transport::{self, Channel};
 
 mod pb;
-use pb::health_service_client::HealthServiceClient;
-use pb::PingRequest;
-use tonic::transport::Channel;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -15,39 +15,92 @@ struct MainCommand {
 }
 
 impl MainCommand {
-    async fn health_client(self) -> Result<HealthServiceClient<Channel>, tonic::transport::Error> {
-        HealthServiceClient::connect(self.addr).await
+    async fn health_client(
+        &self,
+    ) -> Result<pb::health_service_client::HealthServiceClient<Channel>, transport::Error> {
+        pb::health_service_client::HealthServiceClient::connect(self.addr.clone()).await
+    }
+    async fn user_client(
+        &self,
+    ) -> Result<pb::user_service_client::UserServiceClient<Channel>, transport::Error> {
+        pb::user_service_client::UserServiceClient::connect(self.addr.clone()).await
     }
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum Commands {
     /// Play a game of Noughts and Crosses
     Play(PlayArgs),
+    /// Register with the game server
+    Register(RegisterArgs),
     /// Ping the server and receive debugging information
     Ping,
 }
 
-#[derive(Args)]
-struct PlayArgs {
+#[derive(Args, Debug)]
+struct PlayArgs {}
+
+#[derive(Args, Debug)]
+struct RegisterArgs {
     #[arg(long)]
-    /// The username you wish to play as
+    /// The username to register as
     username: String,
+    #[arg(long)]
+    /// The password to register with
+    password: String,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PersistedState {
+    token: String,
+}
+
+fn persisted_state_path() -> Result<path::PathBuf, Box<dyn Error>> {
+    let home_path: path::PathBuf;
+    match env::home_dir() {
+        Some(path) => home_path = path,
+        None => {
+            return Err("unable to determine home dir".into());
+        }
+    }
+
+    Ok(home_path.join(".onx-state.json"))
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
+    tracing_subscriber::fmt::init();
+
     let args = MainCommand::parse();
+    tracing::info!("parsed args");
 
     match &args.command {
-        Commands::Play(play_args) => {
-            println!("play? {}", play_args.username)
+        Commands::Play(_play_args) => {
+            println!("play? {}", "epp");
+        }
+        Commands::Register(register_args) => {
+            println!("Registering as {}...", register_args.username);
+            let mut client = args.user_client().await?;
+            let req = tonic::Request::new(pb::RegisterRequest {
+                username: register_args.username.clone(),
+                password: register_args.password.clone(),
+            });
+            let res: tonic::Response<pb::RegisterResponse> = client.register(req).await?;
+
+            let persist_state = PersistedState {
+                token: res.into_inner().token,
+            };
+            std::fs::write(
+                persisted_state_path()?,
+                serde_json::to_string_pretty(&persist_state)?,
+            )?;
+            println!("Registered! You can now start playing.");
         }
         Commands::Ping => {
             let mut client = args.health_client().await?;
-            let request = tonic::Request::new(PingRequest {});
-            let response = client.ping(request).await?;
-            println!("RESPONSE={:?}", response);
+            let req = tonic::Request::new(pb::PingRequest {});
+            let res: tonic::Response<pb::PingResponse> = client.ping(req).await?;
+            println!("RESPONSE={:?}", res);
         }
     }
 
