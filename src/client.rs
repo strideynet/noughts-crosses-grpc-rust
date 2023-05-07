@@ -55,16 +55,30 @@ struct PersistedState {
     token: String,
 }
 
-fn persisted_state_path() -> Result<path::PathBuf, Box<dyn Error>> {
-    let home_path: path::PathBuf;
-    match env::home_dir() {
-        Some(path) => home_path = path,
-        None => {
-            return Err("unable to determine home dir".into());
+impl PersistedState {
+    fn path() -> Result<path::PathBuf, Box<dyn Error>> {
+        let home_path: path::PathBuf;
+        // TODO: Not use deprecated home_dir
+        match env::home_dir() {
+            Some(path) => home_path = path,
+            None => {
+                return Err("unable to determine home dir".into());
+            }
         }
-    }
 
-    Ok(home_path.join(".onx-state.json"))
+        Ok(home_path.join(".onx-state.json"))
+    }
+    fn load() -> Result<PersistedState, Box<dyn Error>> {
+        let path = PersistedState::path()?;
+        let bytes = std::fs::read(path)?;
+        Ok(serde_json::from_slice(&bytes)?)
+    }
+    fn save(&self) -> Result<(), Box<dyn Error>> {
+        let path = PersistedState::path()?;
+        let bytes = serde_json::to_vec(self)?;
+        std::fs::write(path, bytes)?;
+        Ok(())
+    }
 }
 
 #[tokio::main]
@@ -87,13 +101,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             });
             let res: tonic::Response<pb::RegisterResponse> = client.register(req).await?;
 
-            let persist_state = PersistedState {
+            let state = PersistedState {
                 token: res.into_inner().token,
             };
-            std::fs::write(
-                persisted_state_path()?,
-                serde_json::to_string_pretty(&persist_state)?,
-            )?;
+            state.save()?;
+
             println!("Registered! You can now start playing.");
         }
         Commands::Ping => {
