@@ -26,20 +26,33 @@ struct Claims {
     sub: String,
     iss: String,
     aud: String,
+    exp: u64,
+    iat: u64,
+    nbf: u64,
 }
 
 #[tracing::instrument]
-fn create_jwt(user_id: String) -> jsonwebtoken::errors::Result<String> {
+fn create_jwt(user_id: String) -> Result<String, Box<dyn std::error::Error>> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)?
+        .as_secs();
+    let ttl = 24 * 60 * 60; // 24 hours in seconds
     let claims = Claims {
         sub: user_id,
+        iat: now,
+        nbf: now,
+        exp: now + ttl,
+        // Since we aren't intending for these to be consumed by an external
+        // parties, we can set iss and aud to a fixed value.
+        // TODO: Eventually allow this to be configured with the base url of
+        // the deployment e.g onx.ottr.sh
         iss: "onx".to_string(),
         aud: "onx".to_string(),
-        // TODO: nbf,iat,
     };
     let hdr = jsonwebtoken::Header::default();
     let key = jsonwebtoken::EncodingKey::from_secret("foo".as_bytes());
 
-    jsonwebtoken::encode(&hdr, &claims, &key)
+    Ok(jsonwebtoken::encode(&hdr, &claims, &key)?)
 }
 
 #[derive(Debug, Default)]
