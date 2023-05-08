@@ -5,6 +5,7 @@ package user;
 service UserService {
     rpc Register(RegisterRequest) returns (RegisterResponse);
     rpc Authenticate(AuthenticateRequest) returns (AuthenticateResponse);
+    rpc GetUser(GetUserRequest) returns (GetUserResponse);
 }
 
 message RegisterRequest {
@@ -24,4 +25,15 @@ message AuthenticateRequest {
 
 message AuthenticateResponse {
     string token = 1;
+}
+
+message GetUserRequest {
+    // The ID to fetch. If no value is provided, this fetches the authenticated
+    // users information.
+    string user_id = 1;
+}
+
+message GetUserResponse {
+    string user_id = 1;
+    string username = 2;
 }

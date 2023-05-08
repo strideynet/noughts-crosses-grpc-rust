@@ -32,7 +32,9 @@ struct Claims {
 }
 
 #[tracing::instrument]
-fn create_jwt(user_id: String) -> Result<String, Box<dyn std::error::Error>> {
+fn create_jwt(
+    user_id: String,
+) -> Result<String, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)?
         .as_secs();
@@ -50,6 +52,7 @@ fn create_jwt(user_id: String) -> Result<String, Box<dyn std::error::Error>> {
         aud: "onx".to_string(),
     };
     let hdr = jsonwebtoken::Header::default();
+    // TODO: Load secret from config
     let key = jsonwebtoken::EncodingKey::from_secret("foo".as_bytes());
 
     Ok(jsonwebtoken::encode(&hdr, &claims, &key)?)
@@ -67,8 +70,7 @@ impl pb::user_service_server::UserService for UserService {
     ) -> Result<Response<pb::RegisterResponse>, Status> {
         let id = uuid::Uuid::new_v4();
 
-        // TODO: don't use unwrap here
-        let token = create_jwt(id.to_string()).unwrap();
+        let token = create_jwt(id.to_string()).map_err(|err| Status::from_error(err))?;
         let res = pb::RegisterResponse {
             user_id: id.to_string(),
             token: token,
@@ -76,6 +78,7 @@ impl pb::user_service_server::UserService for UserService {
 
         Ok(Response::new(res))
     }
+
     #[tracing::instrument]
     async fn authenticate(
         &self,
@@ -83,6 +86,24 @@ impl pb::user_service_server::UserService for UserService {
     ) -> Result<Response<pb::AuthenticateResponse>, Status> {
         Err(Status::unimplemented("authenticate not implemented"))
     }
+
+    #[tracing::instrument]
+    async fn get_user(
+        &self,
+        req: Request<pb::GetUserRequest>,
+    ) -> Result<Response<pb::GetUserResponse>, Status> {
+        let user_id = authenticate(req);
+        Err(Status::unimplemented("authenticate not implemented"))
+    }
+}
+
+fn authenticate<T>(req: Request<T>) -> Option<String> {
+    let token = match req.metadata().get("authorization") {
+        Some(t) => t,
+        None => return None,
+    };
+    // TODO: Decode token
+    Some("foo".to_string())
 }
 
 #[tokio::main]
