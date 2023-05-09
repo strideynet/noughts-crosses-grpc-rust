@@ -98,12 +98,19 @@ impl pb::user_service_server::UserService for UserService {
 }
 
 fn authenticate<T>(req: Request<T>) -> Option<String> {
-    let token = match req.metadata().get("authorization") {
+    let token_string = match req.metadata().get("authorization") {
         Some(t) => t,
         None => return None,
     };
-    // TODO: Decode token
-    Some("foo".to_string())
+
+    let decoded: jsonwebtoken::TokenData<Claims> = jsonwebtoken::decode(
+        token_string.to_str().unwrap(),
+        &jsonwebtoken::DecodingKey::from_secret("foo".as_bytes()),
+        &jsonwebtoken::Validation::default(), // TODO: Validate properly
+    )
+    .unwrap();
+
+    Some(decoded.claims.sub)
 }
 
 #[tokio::main]
